@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f0c29">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Auto Clipper - Akses Penyimpanan</title>
+<style>
+  :root {
+    --bg: #0f0c29;
+    --bg2: #24243e;
+    --accent: #4facfe;
+    --accent2: #00f2fe;
+    --danger: #f43f5e;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --text: #e0e0e0;
+    --muted: #9ca3af;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body {
+    font-family: -apple-system, 'Roboto', 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--bg) 0%, #302b63 55%, var(--bg2) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    min-height: 100dvh;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    padding: calc(12px + var(--safe-top)) 12px calc(16px + var(--safe-bottom));
+    overflow-x: hidden;
+  }
+
+  header { text-align: center; margin-bottom: 14px; flex-shrink: 0; }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), #a855f7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .subtitle { color: var(--muted); font-size: 0.72rem; margin-top: 2px; }
+
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 14px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 12px;
+    flex-shrink: 0;
+  }
+
+  /* ===== STORAGE STATUS BANNER ===== */
+  .storage-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(79,172,254,0.08);
+    border: 1px solid rgba(79,172,254,0.3);
+    margin-bottom: 12px;
+    font-size: 0.78rem;
+  }
+  .storage-status.granted {
+    background: rgba(34,197,94,0.1);
+    border-color: rgba(34,197,94,0.4);
+  }
+  .storage-status.denied {
+    background: rgba(244,63,94,0.1);
+    border-color: rgba(244,63,94,0.4);
+  }
+  .storage-status .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--warn);
+    flex-shrink: 0;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .storage-status.granted .dot { background: var(--success); }
+  .storage-status.denied .dot { background: var(--danger); }
+  .storage-status .info { flex: 1; }
+  .storage-status .info b { display: block; font-size: 0.82rem; }
+  .storage-status .info small { color: var(--muted); font-size: 0.7rem; }
+  .storage-status button {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 0.72rem;
+    min-height: 34px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0f0c29;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ===== DROP ZONE ===== */
+  .drop-zone {
+    border: 2px dashed rgba(79,172,254,0.5);
+    border-radius: 14px;
+    padding: 34px 18px;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(79,172,254,0.06);
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    transition: 0.2s;
+  }
+  .drop-zone:active, .drop-zone.drag {
+    border-color: var(--accent);
+    background: rgba(79,172,254,0.18);
+    transform: scale(0.98);
+  }
+  .drop-zone .icon { font-size: 2.6rem; line-height: 1; }
+  .drop-zone p { color: var(--muted); font-size: 0.82rem; }
+  .drop-zone strong { color: var(--accent); }
+
+  /* ===== FILE PICKER BUTTONS ===== */
+  .pick-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .pick-grid button {
+    padding: 12px 8px;
+    font-size: 0.78rem;
+    min-height: 52px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--text);
+    border-radius: 12px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .pick-grid button .emoji { font-size: 1.4rem; line-height: 1; }
+  .pick-grid button:active { background: rgba(79,172,254,0.2); }
+
+  /* ===== VIDEO ===== */
+  .video-wrap {
+    position: relative;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  video {
+    width: 100%;
+    display: block;
+    max-height: 42vh;
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* ===== TIMELINE ===== */
+  .timeline {
+    position: relative;
+    height: 10px;
+    background: #2d3250;
+    border-radius: 5px;
+    margin: 8px 0 14px;
+  }
+  .timeline .sel {
+    position: absolute;
+    top: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 5px;
+  }
+  .timeline .playhead {
+    position: absolute;
+    top: -3px; bottom: -3px;
+    width: 3px;
+    background: var(--danger);
+    border-radius: 2px;
+    box-shadow: 0 0 8px var(--danger);
+    left: 0%;
+  }
+
+  /* ===== SLIDERS ===== */
+  .ctrl-group { margin-bottom: 12px; }
+  .ctrl-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+    color: #cbd5e1;
+  }
+  .ctrl-head .val {
+    color: var(--accent);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    background: rgba(79,172,254,0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 28px;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent) var(--p,0%), #2d3250 var(--p,0%));
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px; height: 24px;
+    margin-top: -8px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 10px rgba(79,172,254,0.7);
+  }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ===== BUTTONS ===== */
+  button, .btn-link {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 48px;
+    width: 100%;
+    touch-action: manipulation;
+    transition: transform 0.1s;
+  }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0f0c29;
+    box-shadow: 0 4px 14px rgba(79,172,254,0.4);
+  }
+  .btn-danger {
+    background: linear-gradient(135deg, var(--danger), #e11d48);
+    box-shadow: 0 4px 14px rgba(244,63,94,0.4);
+  }
+  .btn-success {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    box-shadow: 0 4px 14px rgba(34,197,94,0.4);
+  }
+  .btn-ghost {
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.15);
+    font-size: 0.78rem;
+    min-height: 44px;
+  }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-stack { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ===== STATUS & PROGRESS ===== */
+  .status {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 8px;
+    min-height: 1.2em;
+  }
+
+  /* ===== RESULT ===== */
+  .result-box {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.4);
+    border-radius: 12px;
+    animation: slideUp 0.3s ease;
+  }
+  .result-box .ok { font-size: 0.82rem; margin-bottom: 8px; color: #86efac; }
+  .result-box .path-info {
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: rgba(0,0,0,0.3);
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    word-break: break-all;
+    font-family: monospace;
+    line-height: 1.4;
+  }
+  .result-box .path-info b { color: var(--accent); }
+  .result-box video {
+    max-height: 32vh;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .result-box a { text-decoration: none; display: block; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hidden { display: none !important; }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + var(--safe-bottom));
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0,0,0,0.92);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 24px;
+    font-size: 0.8rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.3s;
+    z-index: 999;
+    max-width: 90vw;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== LOADER ===== */
+  .loader-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,12,41,0.88);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    gap: 16px;
+    padding: 20px;
+    text-align: center;
+  }
+  .spinner {
+    width: 54px; height: 54px;
+    border: 4px solid rgba(79,172,254,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-overlay p { font-size: 0.9rem; color: var(--text); }
+  .loader-overlay .pct {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 360px) {
+    h1 { font-size: 1.25rem; }
+    .card { padding: 12px; }
+    button { font-size: 0.78rem; padding: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Auto Clipper</h1>
+  <p class="subtitle">Potong video · Simpan langsung ke penyimpanan HP</p>
+</header>
+
+<!-- ===== STORAGE STATUS ===== -->
+<div class="card" style="padding:10px;">
+  <div class="storage-status" id="storageStatus">
+    <div class="dot"></div>
+    <div class="info">
+      <b id="storageTitle">Cek akses penyimpanan...</b>
+      <small id="storageSub">Izin diperlukan untuk simpan otomatis</small>
+    </div>
+    <button id="btnRequestStorage" style="display:none;">Izinkan</button>
+  </div>
+</div>
+
+<!-- ===== UPLOAD ===== -->
+<div class="card" id="uploadCard">
+  <div class="drop-zone" id="dropZone">
+    <div class="icon">🎬</div>
+    <p><strong>Ketuk untuk pilih video dari galeri</strong></p>
+    <p style="font-size:0.72rem;opacity:0.7;">atau seret file ke sini</p>
+  </div>
+
+  <div class="pick-grid">
+    <button id="btnPickGallery">
+      <span class="emoji">🖼️</span>
+      <span>Galeri</span>
+    </button>
+    <button id="btnPickFiles">
+      <span class="emoji">📁</span>
+      <span>File Manager</span>
+    </button>
+  </div>
+
+  <input type="file" id="fileInput" accept="video/*" class="hidden">
+</div>
+
+<!-- ===== EDITOR ===== -->
+<div class="card hidden" id="editorCard">
+  <div class="video-wrap">
+    <video id="preview" controls playsinline webkit-playsinline preload="metadata"></video>
+  </div>
+
+  <div class="timeline" id="timeline">
+    <div class="sel" id="selBar"></div>
+    <div class="playhead" id="playhead"></div>
+  </div>
+
+  <div class="row2">
+    <div class="ctrl-group">
+      <div class="ctrl-head">
+        <span>Mulai</span>
+        <span class="val" id="startLabel">0.0s</span>
+      </div>
+      <input type="range" id="startRange" min="0" max="100" step="0.1" value="0">
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-head">
+        <span>Akhir</span>
+        <span class="val" id="endLabel">0.0s</span>
+      </div>
+      <input type="range" id="endRange" min="0" max="100" step="0.1" value="100">
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="ctrl-group">
+      <div class="ctrl-head">
+        <span>Kecepatan</span>
+        <span class="val" id="speedLabel">1.0x</span>
+      </div>
+      <input type="range" id="speedRange" min="0.5" max="2" step="0.1" value="1">
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-head">
+        <span>Kualitas</span>
+        <span class="val" id="bitrateLabel">5 Mbps</span>
+      </div>
+      <input type="range" id="bitrateRange" min="1" max="10" step="1" value="5">
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-bottom:8px;">
+    <button class="btn-ghost" id="btnSetStart">⬅ Set Mulai</button>
+    <button class="btn-ghost" id="btnSetEnd">Set Akhir ➡</button>
+  </div>
+
+  <div class="btn-row" style="margin-bottom:10px;">
+    <button class="btn-ghost" id="btnPlaySel">▶ Preview</button>
+    <button class="btn-ghost" id="btnFullscreen">⛶ Fullscreen</button>
+  </div>
+
+  <div class="btn-stack">
+    <button class="btn-primary" id="btnClip">✂️ Potong Video</button>
+    <button class="btn-danger" id="btnReset">🔄 Reset</button>
+  </div>
+
+  <p class="status" id="status"></p>
+
+  <!-- RESULT -->
+  <div class="result-box hidden" id="resultBox">
+    <p class="ok">✅ Clip berhasil dibuat!</p>
+    <video id="resultVideo" controls playsinline></video>
+
+    <div class="path-info hidden" id="pathInfo"></div>
+
+    <div class="btn-stack">
+      <button class="btn-success" id="btnSaveStorage">💾 Simpan ke Penyimpanan</button>
+      <button class="btn-primary" id="btnShare">📤 Bagikan</button>
+    </div>
+
+    <a id="downloadLink" class="hidden"></a>
+  </div>
+</div>
+
+<!-- ===== LOADER ===== -->
+<div class="loader-overlay hidden" id="loader">
+  <div class="spinner"></div>
+  <div class="pct" id="loaderPct">0%</div>
+  <p id="loaderText">Memproses video...</p>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   AUTO CLIPPER — Storage Edition
+   ========================================================= */
+const $ = id => document.getElementById(id);
+
+const fileInput    = $('fileInput');
+const dropZone     = $('dropZone');
+const uploadCard   = $('uploadCard');
+const editorCard   = $('editorCard');
+const preview      = $('preview');
+const startRange   = $('startRange');
+const endRange     = $('endRange');
+const speedRange   = $('speedRange');
+const bitrateRange = $('bitrateRange');
+const startLabel   = $('startLabel');
+const endLabel     = $('endLabel');
+const speedLabel   = $('speedLabel');
+const bitrateLabel = $('bitrateLabel');
+const selBar       = $('selBar');
+const playhead     = $('playhead');
+const statusEl     = $('status');
+const resultBox    = $('resultBox');
+const resultVideo  = $('resultVideo');
+const downloadLink = $('downloadLink');
+const pathInfo     = $('pathInfo');
+const loader       = $('loader');
+const loaderPct    = $('loaderPct');
+const loaderText   = $('loaderText');
+const toastEl      = $('toast');
+
+const storageStatus   = $('storageStatus');
+const storageTitle    = $('storageTitle');
+const storageSub      = $('storageSub');
+const btnRequestStorage = $('btnRequestStorage');
+
+let videoURL  = null;
+let duration  = 0;
+let isClipping = false;
+let wakeLock  = null;
+let lastBlob  = null;
+let lastExt   = 'webm';
+let lastMime  = 'video/webm';
+
+// Direktori yang sudah di-grant (File System Access API)
+let saveDirHandle = null;
+
+/* =========================================================
+   UTIL
+   ========================================================= */
+function fmt(t) { return (Math.round(t * 10) / 10).toFixed(1) + 's'; }
+
+function showToast(msg, ms = 2500) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toastEl.classList.remove('show'), ms);
+}
+
+function showLoader(text = 'Memproses...') {
+  loaderText.textContent = text;
+  loaderPct.textContent = '0%';
+  loader.classList.remove('hidden');
+}
+function updateLoader(pct, text) {
+  loaderPct.textContent = Math.round(pct) + '%';
+  if (text) loaderText.textContent = text;
+}
+function hideLoader() { loader.classList.add('hidden'); }
+
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch(e){}
+}
+async function releaseWakeLock() {
+  try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch(e){}
+}
+
+/* =========================================================
+   CEK DUKUNGAN FILE SYSTEM ACCESS API
+   ========================================================= */
+const supportsFS = typeof window.showSaveFilePicker === 'function' ||
+                   typeof window.showDirectoryPicker === 'function';
+
+function updateStorageUI(state) {
+  storageStatus.className = 'storage-status';
+  if (state === 'granted') {
+    storageStatus.classList.add('granted');
+    storageTitle.textContent = '✅ Akses penyimpanan aktif';
+    storageSub.textContent = saveDirHandle
+      ? `Folder: ${saveDirHandle.name}`
+      : 'Klik tombol simpan untuk memilih folder';
+    btnRequestStorage.style.display = 'none';
+  } else if (state === 'denied') {
+    storageStatus.classList.add('denied');
+    storageTitle.textContent = '⚠️ Akses terbatas';
+    storageSub.textContent = 'Browser tidak mendukung File System API';
+    btnRequestStorage.style.display = 'none';
+  } else {
+    storageTitle.textContent = '🔒 Belum ada akses folder';
+    storageSub.textContent = supportsFS
+      ? 'Ketuk "Pilih Folder" untuk simpan otomatis'
+      : 'Browser akan unduh ke folder Download';
+    btnRequestStorage.style.display = supportsFS ? 'inline-block' : 'none';
+    btnRequestStorage.textContent = supportsFS ? 'Pilih Folder' : 'Info';
+  }
+}
+
+// Cek saat load
+if (supportsFS) {
+  updateStorageUI('pending');
+} else {
+  updateStorageUI('denied');
+}
+
+/* =========================================================
+   MINTA AKSES FOLDER PENYIMPANAN
+   ========================================================= */
+btnRequestStorage.addEventListener('click', async () => {
+  if (!supportsFS) {
+    showToast('Browser tidak mendukung akses folder. File akan diunduh ke Download.', 3500);
+    return;
+  }
+  try {
+    // Prioritaskan Download folder bila tersedia
+    saveDirHandle = await window.showDirectoryPicker({
+      mode: 'readwrite',
+      startIn: 'downloads',
+      id: 'autoclipper-out'
+    });
+    updateStorageUI('granted');
+    showToast(`✅ Folder "${saveDirHandle.name}" terhubung`, 2500);
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    console.warn(e);
+    showToast('Gagal memilih folder: ' + e.message, 3500);
+  }
+});
+
+/* =========================================================
+   UPLOAD — dua jalur: galeri & file manager
+   ========================================================= */
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) loadVideo(f);
+});
+
+// Tombol galeri (pakai capture agar buka galeri/photo picker)
+$('btnPickGallery').addEventListener('click', () => {
+  fileInput.removeAttribute('capture');
+  fileInput.click();
+});
+
+// Tombol file manager (tanpa capture, buka SAF Android)
+$('btnPickFiles').addEventListener('click', () => {
+  fileInput.setAttribute('capture', '');
+  fileInput.removeAttribute('capture'); // pastikan kosong
+  fileInput.click();
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('video/')) loadVideo(f);
+});
+
+function loadVideo(file) {
+  if (videoURL) URL.revokeObjectURL(videoURL);
+  videoURL = URL.createObjectURL(file);
+  preview.src = videoURL;
+
+  preview.onloadedmetadata = () => {
+    duration = preview.duration || 0;
+    if (!isFinite(duration) || duration <= 0) {
+      showToast('⚠️ Durasi tidak terbaca. Coba format MP4/WebM.', 3500);
+      return;
+    }
+    startRange.max = duration;
+    endRange.max   = duration;
+    startRange.value = 0;
+    endRange.value   = duration;
+    updateLabels();
+    uploadCard.classList.add('hidden');
+    editorCard.classList.remove('hidden');
+    resultBox.classList.add('hidden');
+    statusEl.textContent = `Durasi: ${duration.toFixed(2)} detik`;
+    showToast('Video siap dipotong ✅');
+  };
+
+  preview.onerror = () => showToast('❌ Format video tidak didukung.', 3500);
+}
+
+/* =========================================================
+   SLIDERS
+   ========================================================= */
+function updateLabels() {
+  const s = +startRange.value;
+  const e = +endRange.value;
+  startLabel.textContent = fmt(s);
+  endLabel.textContent   = fmt(e);
+  speedLabel.textContent = (+speedRange.value).toFixed(1) + 'x';
+  bitrateLabel.textContent = bitrateRange.value + ' Mbps';
+
+  [startRange, endRange, speedRange, bitrateRange].forEach(r => {
+    const p = ((r.value - r.min) / (r.max - r.min)) * 100;
+    r.style.setProperty('--p', p + '%');
+  });
+
+  const total = duration || 1;
+  selBar.style.left  = (Math.min(s, e) / total * 100) + '%';
+  selBar.style.width = (Math.abs(e - s) / total * 100) + '%';
+}
+
+[startRange, endRange, speedRange, bitrateRange].forEach(r =>
+  r.addEventListener('input', updateLabels)
+);
+
+preview.addEventListener('timeupdate', () => {
+  if (duration) playhead.style.left = (preview.currentTime / duration) * 100 + '%';
+});
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+$('btnSetStart').addEventListener('click', () => {
+  startRange.value = preview.currentTime.toFixed(2);
+  if (+startRange.value > +endRange.value) endRange.value = duration;
+  updateLabels();
+  showToast('⬅ Mulai: ' + fmt(+startRange.value), 1500);
+});
+
+$('btnSetEnd').addEventListener('click', () => {
+  endRange.value = preview.currentTime.toFixed(2);
+  if (+endRange.value < +startRange.value) startRange.value = 0;
+  updateLabels();
+  showToast('Akhir: ' + fmt(+endRange.value), 1500);
+});
+
+$('btnPlaySel').addEventListener('click', () => {
+  preview.currentTime = +startRange.value;
+  preview.play();
+  const stopAt = +endRange.value;
+  const check = () => {
+    if (preview.currentTime >= stopAt) {
+      preview.pause();
+      preview.removeEventListener('timeupdate', check);
+    }
+  };
+  preview.addEventListener('timeupdate', check);
+});
+
+$('btnFullscreen').addEventListener('click', () => {
+  if (preview.requestFullscreen) preview.requestFullscreen().catch(()=>{});
+  else if (preview.webkitEnterFullscreen) preview.webkitEnterFullscreen();
+  else showToast('Fullscreen tidak didukung');
+});
+
+$('btnReset').addEventListener('click', () => {
+  if (isClipping) return;
+  if (videoURL) URL.revokeObjectURL(videoURL);
+  videoURL = null;
+  preview.removeAttribute('src');
+  preview.load();
+  fileInput.value = '';
+  editorCard.classList.add('hidden');
+  uploadCard.classList.remove('hidden');
+  resultBox.classList.add('hidden');
+  statusEl.textContent = '';
+  lastBlob = null;
+});
+
+/* =========================================================
+   CLIPPING
+   ========================================================= */
+$('btnClip').addEventListener('click', async () => {
+  if (isClipping) return;
+  const start = +startRange.value;
+  const end   = +endRange.value;
+  if (end <= start) { showToast('⚠️ Waktu akhir harus > mulai'); return; }
+
+  isClipping = true;
+  $('btnClip').disabled = true;
+  resultBox.classList.add('hidden');
+  await acquireWakeLock();
+  showLoader('Menyiapkan...');
+
+  try {
+    await clipVideo(start, end, +speedRange.value, (+bitrateRange.value) * 1_000_000);
+  } catch (err) {
+    console.error(err);
+    hideLoader();
+    showToast('❌ Gagal: ' + err.message, 4000);
+  } finally {
+    isClipping = false;
+    $('btnClip').disabled = false;
+    await releaseWakeLock();
+  }
+});
+
+function pickMime() {
+  const list = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4;codecs=h264',
+    'video/mp4'
+  ];
+  for (const m of list) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  }
+  return '';
+}
+
+function clipVideo(start, end, speed, bitrate) {
+  return new Promise((resolve, reject) => {
+    const src = document.createElement('video');
+    src.src = videoURL;
+    src.muted = false;
+    src.playsInline = true;
+    src.setAttribute('webkit-playsinline', '');
+    src.preload = 'auto';
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const maxW = 720;
+
+    let stream = null;
+    let audioCtx = null;
+    let recorder = null;
+    const chunks = [];
+    const targetFPS = 30;
+    const frameInterval = 1000 / targetFPS;
+    let lastFrameTime = 0;
+    let rafId = null;
+    let stopped = false;
+
+    const cleanup = () => {
+      if (stopped) return;
+      stopped = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      try { src.pause(); } catch(e){}
+      try { stream.getTracks().forEach(t => t.stop()); } catch(e){}
+      try { if (audioCtx && audioCtx.state !== 'closed') audioCtx.close(); } catch(e){}
+      try { src.src = ''; src.load(); } catch(e){}
+    };
+
+    src.onloadedmetadata = () => {
+      try {
+        let w = src.videoWidth, h = src.videoHeight;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        canvas.width = w; canvas.height = h;
+
+        try {
+          stream = canvas.captureStream(targetFPS);
+        } catch(e) {
+          return reject(new Error('captureStream tidak didukung'));
+        }
+
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) {
+            audioCtx = new AC();
+            const srcNode = audioCtx.createMediaElementSource(src);
+            const dest = audioCtx.createMediaStreamDestination();
+            srcNode.connect(dest);
+            dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+          }
+        } catch (e) { console.warn('Audio:', e); }
+
+        const mimeType = pickMime();
+        if (!mimeType) return reject(new Error('MediaRecorder tidak didukung'));
+        lastMime = mimeType;
+        lastExt = mimeType.includes('mp4') ? 'mp4' : 'webm';
+
+        try {
+          recorder = new MediaRecorder(stream, {
+            mimeType,
+            videoBitsPerSecond: bitrate,
+            audioBitsPerSecond: 128000
+          });
+        } catch (e) {
+          return reject(new Error('MediaRecorder gagal dibuat'));
+        }
+
+        recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+        recorder.onstop = () => {
+          try {
+            const blob = new Blob(chunks, { type: mimeType.split(';')[0] });
+            lastBlob = blob;
+            const url = URL.createObjectURL(blob);
+
+            resultVideo.src = url;
+            downloadLink.href = url;
+            downloadLink.download = `clip_${Date.now()}.${lastExt}`;
+
+            resultBox.classList.remove('hidden');
+            statusEl.textContent = `✅ Selesai · ${(blob.size/1024/1024).toFixed(2)} MB`;
+            updateLoader(100, 'Selesai!');
+            setTimeout(hideLoader, 400);
+            showToast('✅ Clip siap disimpan!', 3000);
+            resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Auto-save jika folder sudah terhubung
+            if (saveDirHandle) {
+              autoSaveToFolder(blob, lastExt);
+            }
+          } catch (e) { reject(e); }
+          cleanup();
+          resolve();
+        };
+
+        recorder.onerror = e => { cleanup(); reject(e.error || new Error('Recorder error')); };
+
+        src.currentTime = start;
+        src.onseeked = () => {
+          try { recorder.start(200); } catch(e) { return reject(e); }
+          src.playbackRate = speed;
+          src.play().catch(err => reject(new Error('Autoplay: ' + err.message)));
+          updateLoader(0, 'Memproses frame...');
+
+          const drawFrame = (t) => {
+            if (stopped) return;
+            if (src.paused || src.ended) return;
+            if (t - lastFrameTime >= frameInterval) {
+              lastFrameTime = t;
+              try { ctx.drawImage(src, 0, 0, canvas.width, canvas.height); } catch(e){}
+              const done = Math.min(1, Math.max(0, (src.currentTime - start) / (end - start)));
+              updateLoader(done * 100);
+            }
+            if (src.currentTime < end) rafId = requestAnimationFrame(drawFrame);
+          };
+          rafId = requestAnimationFrame(drawFrame);
+        };
+
+        src.ontimeupdate = () => {
+          if (src.currentTime >= end && recorder && recorder.state === 'recording') {
+            try { src.pause(); } catch(e){}
+            try { recorder.stop(); } catch(e){}
+          }
+        };
+
+        src.onerror = () => reject(new Error('Video error'));
+      } catch (err) { cleanup(); reject(err); }
+    };
+
+    src.onerror = () => reject(new Error('Gagal memuat video'));
+    src.load();
+  });
+}
+
+/* =========================================================
+   SIMPAN KE PENYIMPANAN
+   ========================================================= */
+
+// Auto-save ketika folder sudah dipilih sebelumnya
+async function autoSaveToFolder(blob, ext) {
+  try {
+    const filename = `clip_${Date.now()}.${ext}`;
+    const fileHandle = await saveDirHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+
+    showToast(`💾 Tersimpan: ${filename}`, 3000);
+    showPath(`📁 ${saveDirHandle.name}/${filename}`);
+  } catch (e) {
+    console.warn('Auto-save gagal:', e);
+    showToast('⚠️ Auto-save gagal, ketuk "Simpan"', 3000);
+  }
+}
+
+function showPath(txt) {
+  pathInfo.textContent = txt;
+  pathInfo.classList.remove('hidden');
+}
+
+// Tombol simpan utama
+$('btnSaveStorage').addEventListener('click', async () => {
+  if (!lastBlob) { showToast('Belum ada file untuk disimpan'); return; }
+
+  const filename = `clip_${Date.now()}.${lastExt}`;
+
+  // PRIORITAS 1: File System Access API (simpan langsung ke folder pilihan)
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{
+          description: 'Video',
+          accept: { [lastMime.split(';')[0]]: ['.' + lastExt] }
+        }],
+        startIn: saveDirHandle || 'downloads',
+        id: 'autoclipper-save'
+      });
+      const writable = await handle.createWritable();
+      await writable.write(lastBlob);
+      await writable.close();
+      showToast(`✅ Tersimpan: ${handle.name}`, 3000);
+      showPath(`📁 ${handle.name}`);
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      console.warn('Save picker gagal:', e);
+      // lanjut ke fallback
+    }
+  }
+
+  // PRIORITAS 2: Folder yang sudah terhubung
+  if (saveDirHandle) {
+    try {
+      const fh = await saveDirHandle.getFileHandle(filename, { create: true });
+      const w = await fh.createWritable();
+      await w.write(lastBlob);
+      await w.close();
+      showToast(`✅ Tersimpan di "${saveDirHandle.name}"`, 3000);
+      showPath(`📁 ${saveDirHandle.name}/${filename}`);
+      return;
+    } catch (e) { console.warn('Dir save gagal:', e); }
+  }
+
+  // PRIORITAS 3: Fallback download biasa (masuk folder Download Android)
+  const url = URL.createObjectURL(lastBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+  showToast('⬇️ File diunduh ke folder Download', 3500);
+  showPath(`📁 Download/${filename}`);
+});
+
+/* =========================================================
+   SHARE API
+   ========================================================= */
+$('btnShare').addEventListener('click', async () => {
+  if (!lastBlob) return;
+  const filename = `clip_${Date.now()}.${lastExt}`;
+  const file = new File([lastBlob], filename, { type: lastMime.split(';')[0] });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: 'Auto Clipper',
+        text: 'Hasil potongan video'
+      });
+      showToast('📤 Dibagikan');
+    } catch (e) {
+      if (e.name !== 'AbortError') showToast('Gagal membagikan: ' + e.message);
+    }
+  } else {
+    showToast('Browser tidak mendukung share file. Gunakan tombol Simpan.', 3500);
+  }
+});
+
+/* =========================================================
+   LIFECYCLE
+   ========================================================= */
+window.addEventListener('beforeunload', () => {
+  releaseWakeLock();
+  if (videoURL) URL.revokeObjectURL(videoURL);
+});
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && isClipping) {
+    await acquireWakeLock();
+  }
+});
+
+// Cegah double-tap zoom
+let lastTouch = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouch <= 300) e.preventDefault();
+  lastTouch = now;
+}, { passive: false });
+
+console.log('⚡ Auto Clipper Storage Edition ready');
+</script>
+</body>
+</html>
